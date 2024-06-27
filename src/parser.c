@@ -14,7 +14,7 @@
 
 /* Configurações de Ambiente */
 /* --------------------- */
-#define TAM_BUFFER_REGEXP   100
+#define TAM_BUFFER_REGEXP   10
 
 #ifdef DEBUG
     #define LOG(fmt, ...) printf("DEBUG: " fmt "\n", ##__VA_ARGS__)
@@ -230,6 +230,7 @@ void exige_caractere(char c) {
     if (input[pos] == c) {
         consome_caracter();
     } else {
+        LOG("Erro ao consumir caractere");
         raiseSintaxError(pos, input[pos], c);
     }
 }
@@ -290,11 +291,14 @@ static RegExp *parse_concat() {
     LOG("entrei em: parse_concat");
     RegExp *e1, *e2;  
     char c = atual_caracter();
+ 
     e1 = NULL;  
 
     /* Loop para analisar caracteres enquanto não encontra '|' */
-    while (c && c != '|') {
+    while (c && c != '|' && c != '\n') {
         e2 = parse_estrela();
+        LOG("Voltei para: parse_concat");
+
         /* Se e1 ainda não foi definida*/ 
         if (e1 == NULL) {
             /* Define e1 como a primeira sub-expressão encontrada */ 
@@ -302,6 +306,11 @@ static RegExp *parse_concat() {
         } else {  
             /* Concatena a nova sub-expressão com a já existente */
             e1 = new_concat(e1, e2); 
+        }
+
+        c = atual_caracter();
+        if (c == ')') {
+            raiseSintaxError(pos, c, '\n');
         }
     }
 
@@ -315,16 +324,18 @@ static RegExp *parse_estrela() {
 
     /* Analisa a expressão básica */
     if (atual_caracter() == '(') {
+        LOG("ENTREI NO CASO PARTENTES");
         exige_caractere('(');
         base = parse_basico(); 
         exige_caractere(')');
     } else {
         base = parse_basico();
     }
+    LOG("voltei para: parse_estrela");
     
     while (atual_caracter() == '*') {
         /* Consome e ignora o '*' */
-        consome_caracter(); 
+        exige_caractere('*'); 
         base = new_star(base);
     }
 
@@ -349,18 +360,13 @@ static RegExp *parse_basico() {
             raiseSintaxError(pos, c, '\n'); 
             break;
 
-        case ( ')' ): /* Fecha parenteses que pode ou não estar certo */
-            if (num_parenteses_abertos > 0) {
-                num_parenteses_abertos--;
-                exige_caractere(')');
-            } else {
-                raiseSintaxError(pos, c, '\n'); 
-            }
-            /* fall throught intencional */
-            __attribute__((fallthrough));
+        case ( ')' ): /* O parênteses tem que ser fechado em parse_estrela. */
+                      /* Se aqui temos ')', é pq é EMPTY */
+            return new_empty();
+
         default: /* Caractere simples */
-/*            consome_caracter();*/
-            return new_char(atual_caracter());
+            consome_caracter();
+            return new_char(c);
     }
 
     return NULL; /* para evitar warning */
