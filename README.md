@@ -11,11 +11,25 @@ uniao   -> concat( '|' uniao )?
 concat  -> star(concat)?
 star    -> star'*' |
            simples
-simples -> caracter |
+simples -> CARACTERE |
            '(' regexp ')'
 ```
 
-## Testes 
+# Uso do Repositório
+
+## Rodar testes
+
+Basta executar o comando:
+```
+make clean && make && ./tests/run_tests.sh
+```
+
+## Debugar um caso específico
+
+Aí você precisa colocar o conteúdo do caso/teste no arquivo `input.txt`, na raíz e executar o comando:
+```
+make clean && make debug && ./parser < input.txt
+```
 
 (ab)
 $()*
