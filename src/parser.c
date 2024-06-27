@@ -1,19 +1,27 @@
-/*Autores: 
-    - Samuel Sampaio Diniz - 122076523
-    - Daniel Nocita - (...)
+/**
+ * @file parser.c
+ * @brief Dada várias expressões regulares, o programa constroi uma árvore.
+ * @author Samuel Sampaio Diniz - 122076523
+ * @author Daniel Nocito        - 122076971
 */
 
 
-/* Sessão de Inclusão de Bibliotecas */
-/* --------------------------------- */
+/* Inclusão de Bibliotecas */
+/* ----------------------- */
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
 
 /* Configurações de Ambiente */
 /* --------------------- */
-#define TAM_MAX             1024
+#define TAM_BUFFER_REGEXP   100
 // #define DEBUG
+
+#ifdef DEBUG
+    #define LOG(fmt, ...) printf("DEBUG: " fmt "\n", ##__VA_ARGS__)
+#else
+    #define LOG(fmt, ...) 
+#endif
 
 /* Variáveis Globais */
 /* ----------------- */
@@ -116,32 +124,40 @@ RegExp *new_union(RegExp *filho1, RegExp *filho2) {
  * @param c_esperado caracter que era esperado se não fosse o erro de sintaxe
 */
 void raiseSintaxError(int posicao, char c_recebido, char c_esperado) {
-    printf("Erro se sintaxe na posição %d: esperava '%c', encontrei '%c'\n", posicao, c_esperado, c_recebido);
+    if (c_recebido == '\n') {
+        printf("Erro de sintaxe na posição %d: esperava '%c', encontrei '\\n'\n", posicao, c_esperado);
+    } else if (c_esperado == '\n') {
+        printf("Erro de sintaxe na posição %d: esperava '\\n', encontrei '%c'\n", posicao, c_recebido);
+    } else {
+        printf("Erro de sintaxe na posição %d: esperava '%c', encontrei '%c'\n", posicao, c_esperado, c_recebido);
+    }
+
     exit(1);
 }
 
 /**
- * @brief Erro de RegExp maior que o buffer TAM_MAX
+ * @brief Erro de RegExp maior que o buffer TAM_BUFFER_REGEXP
 */
 void raiseRegExpOverflowError() {
     printf("Erro: overflow no tamanho do buffer da RegExp.\n");
-    exit(1);
+
+    exit(2);
 }
 
 /**
  * @brief Caracter espacial inesperado na posição
 */
-void raiseSpecialCharError(){
-    printf("Caracter especial não esperado!\n");
-    exit(1);
-}
+// void raiseSpecialCharError(char c, int pos){
+//     printf("Caracter especial não esperado!\n");
+// }
 
 /**
  * @brief Erro lançado caso haja algo fora do comum
 */
 void raiseSuddenEnd(){
     printf("Erro inesperado! Fim do programa!\n");
-    exit(1);
+
+    exit(3);
 }
 
 /**
@@ -182,6 +198,9 @@ void print_arvore(RegExp* arvore, int nivel) {
         print_arvore(arvore->u.bin.filho2, nivel + 1);
         break;
     }
+
+    /* Finalina com um newline */
+    // printf("\n");
 }
 
 /* Rotina principal do Parser */
@@ -193,8 +212,17 @@ char atual_caracter(){
 void consome_caracter() {
     pos++;
     /*verifica se a incrementação ultrapassou o limite*/
-    if (pos > TAM_MAX){
+    if (pos > TAM_BUFFER_REGEXP){
+        printf("pos: %d    buff: %d\n", pos, TAM_BUFFER_REGEXP);
         raiseRegExpOverflowError();
+    }
+}
+
+void exige_caractere(char c) {
+    if (atual_caracter() == c) {
+        consome_caracter();
+    } else {
+        raiseSintaxError(pos, atual_caracter(), c);
     }
 }
 
@@ -207,15 +235,17 @@ static RegExp *parse_basico();
 
 /* Implementação das Funções do Parser */
 static RegExp *parse_regexp() {
+    LOG("entrei em: parse_regexp\n");
     return parse_uniao();
 }
 
 static RegExp *parse_uniao() {
+    LOG("entrei em: parse_union\n");
     RegExp *e1, *e2;
 
     e1 = parse_concat();
     while (atual_caracter() == '|') {
-        consome_caracter(); /* Consome '|' avançando uma posição */
+        exige_caractere('|'); /* Consome '|' avançando uma posição */
         e2 = parse_concat();
         e1 = new_union(e1, e2);
     }
@@ -223,33 +253,36 @@ static RegExp *parse_uniao() {
 }
 
 static RegExp *parse_concat() {
+    LOG("entrei em: parse_concat\n");
     RegExp *e1, *e2;  
-
     e1 = NULL;  
-    /*Loop para analisar caracteres enquanto não encontra '|' ou ')'*/
+
+    /* Loop para analisar caracteres enquanto não encontra '|' ou ')' */
     while (atual_caracter() && atual_caracter() != '|' && atual_caracter() != ')') {
         e2 = parse_estrela();
         /* Se e1 ainda não foi definida*/ 
         if (e1 == NULL) {
-            /*Define e1 como a primeira sub-expressão encontrada*/ 
+            /* Define e1 como a primeira sub-expressão encontrada */ 
             e1 = e2;  
         } else {  
-            /*Concatena a nova sub-expressão com a já existente*/
+            /* Concatena a nova sub-expressão com a já existente */
             e1 = new_concat(e1, e2); 
         }
     }
-    /*Retorna a árvore de sintaxe da concatenação ou uma expressão vazia se nenhuma sub-expressão foi encontrada*/
+
+    /* Retorna a árvore de sintaxe da concatenação ou uma expressão vazia se nenhuma sub-expressão foi encontrada */
     return e1 == NULL ? new_empty() : e1;
 } 
 
 static RegExp *parse_estrela() {
+    LOG("entrei em: parse_estrela\n");
     RegExp *base;
 
-    /*Analisa a expressão básica*/
+    /* Analisa a expressão básica */
     base = parse_basico(); 
     
     while (atual_caracter() == '*') {
-        /*Consome e ignora o '*' */
+        /* Consome e ignora o '*' */
         consome_caracter(); 
         base = new_star(base);
     }
@@ -258,32 +291,30 @@ static RegExp *parse_estrela() {
 }
 
 static RegExp *parse_basico() {
+    LOG("entrei em: parse_basico\n");
     char c = atual_caracter(); 
 
     if (c == '(') { 
-        /*Consome o '('*/
-        consome_caracter();
-        /*Analisa a sub-expressão entre parênteses*/
+        /* Consome o '(' */
+        exige_caractere('(');
+        /* Analisa a sub-expressão entre parênteses */
         RegExp *subExpressao = parse_regexp();
-        /*Verifica se a sub-expressão fecha corretamente*/ 
-        if (atual_caracter() != ')') {  
-            raiseSintaxError(pos, atual_caracter(), ')');  
-        }
-        /*Consome o ')'*/
-        consome_caracter(); 
+        /* Verifica se a sub-expressão fecha corretamente*/
+        exige_caractere(')');
+        // if (atual_caracter() != ')') {  
+        //     raiseSintaxError(pos, atual_caracter(), ')');  
+        // }
+        // /*Consome o ')'*/
+        // consome_caracter(); 
         return subExpressao; 
 
-    } else if (c == '|' || c == '(' || c == ')' || c == '*') {  // Verifica se o caractere é especial e inesperado
-        raiseSpecialCharError(); 
-
-    } else if (c) {  // Verifica se há um caractere válido
+    } else if (c != '|' || c != ')' || c != '*') {  // Verifica se o caractere é especial e inesperado
         consome_caracter();
         return new_char(c);  // Retorna uma expressão regular com o caractere
 
     }
-
-    raiseSuddenEnd(); 
-    return NULL;  // Retorna NULL para evitar warning do compilador
+    raiseSintaxError(pos, c, '\n'); 
+    return NULL; /* para evitar warning */
 }
 
 int main(void) {
@@ -301,17 +332,26 @@ int main(void) {
     print_arvore(ptArv, 0);
 #endif
 
-    char linha[1024];
+    char linha[TAM_BUFFER_REGEXP];
+
     while(fgets(linha, sizeof(linha), stdin)){
         pos = 0;
+        LOG("linha lida: %s\n", linha);
         input = linha;
+
+        /* Trata o caso linha vazia */
         if (linha[strlen(linha) - 1] == '\n'){
             linha[strlen(linha) - 1] = '\0'; /*remove o caractere newline*/
         }
 
-        RegExp *ptCabeca = parse_regexp(); /*ponteiro para o inicio da arvore (nivel 0)*/
+        /* Ignora linhas comentadas com $ */
+        // if (linha[0] != '$') { 
+        /* Parseia a linha */
+        RegExp *ptCabeca = parse_regexp(); /* ponteiro para o inicio da arvore (nivel 0)*/
+
+        /* Imprime para o usuário */
         print_arvore(ptCabeca, 0);
-        printf("\n\n");
+        // }
     }
     
     return 0;
