@@ -1,0 +1,1 @@
+Erro de sintaxe na posição 4: esperava '\n', encontrei ')'

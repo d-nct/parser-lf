@@ -15,7 +15,6 @@
 /* Configurações de Ambiente */
 /* --------------------- */
 #define TAM_BUFFER_REGEXP   100
-// #define DEBUG
 
 #ifdef DEBUG
     #define LOG(fmt, ...) printf("DEBUG: " fmt "\n", ##__VA_ARGS__)
@@ -147,9 +146,11 @@ void raiseRegExpOverflowError() {
 /**
  * @brief Caracter espacial inesperado na posição
 */
-// void raiseSpecialCharError(char c, int pos){
-//     printf("Caracter especial não esperado!\n");
-// }
+/*
+ void raiseSpecialCharError(char c, int pos){
+     printf("Caracter especial não esperado!\n");
+ }
+*/
 
 /**
  * @brief Erro lançado caso haja algo fora do comum
@@ -198,9 +199,6 @@ void print_arvore(RegExp* arvore, int nivel) {
         print_arvore(arvore->u.bin.filho2, nivel + 1);
         break;
     }
-
-    /* Finalina com um newline */
-    // printf("\n");
 }
 
 /* Rotina principal do Parser */
@@ -235,12 +233,12 @@ static RegExp *parse_basico();
 
 /* Implementação das Funções do Parser */
 static RegExp *parse_regexp() {
-    LOG("entrei em: parse_regexp\n");
+    LOG("entrei em: parse_regexp");
     return parse_uniao();
 }
 
 static RegExp *parse_uniao() {
-    LOG("entrei em: parse_union\n");
+    LOG("entrei em: parse_union");
     RegExp *e1, *e2;
 
     e1 = parse_concat();
@@ -253,7 +251,7 @@ static RegExp *parse_uniao() {
 }
 
 static RegExp *parse_concat() {
-    LOG("entrei em: parse_concat\n");
+    LOG("entrei em: parse_concat");
     RegExp *e1, *e2;  
     e1 = NULL;  
 
@@ -275,7 +273,7 @@ static RegExp *parse_concat() {
 } 
 
 static RegExp *parse_estrela() {
-    LOG("entrei em: parse_estrela\n");
+    LOG("entrei em: parse_estrela");
     RegExp *base;
 
     /* Analisa a expressão básica */
@@ -291,7 +289,7 @@ static RegExp *parse_estrela() {
 }
 
 static RegExp *parse_basico() {
-    LOG("entrei em: parse_basico\n");
+    LOG("entrei em: parse_basico");
     char c = atual_caracter(); 
 
     if (c == '(') { 
@@ -301,16 +299,11 @@ static RegExp *parse_basico() {
         RegExp *subExpressao = parse_regexp();
         /* Verifica se a sub-expressão fecha corretamente*/
         exige_caractere(')');
-        // if (atual_caracter() != ')') {  
-        //     raiseSintaxError(pos, atual_caracter(), ')');  
-        // }
-        // /*Consome o ')'*/
-        // consome_caracter(); 
         return subExpressao; 
 
-    } else if (c != '|' || c != ')' || c != '*') {  // Verifica se o caractere é especial e inesperado
+    } else if (c != '|' || c != ')' || c != '*') {  /* Verifica se o caractere é especial e inesperado */
         consome_caracter();
-        return new_char(c);  // Retorna uma expressão regular com o caractere
+        return new_char(c);  /* Retorna uma expressão regular com o caractere */
 
     }
     raiseSintaxError(pos, c, '\n'); 
@@ -319,8 +312,9 @@ static RegExp *parse_basico() {
 
 int main(void) {
 
-#ifdef DEBUG
+
     /* Teste de sanidade: construir árvore na mão. OK*/
+  /*
     RegExp *ptArv;
     ptArv = new_union(
         new_concat(
@@ -330,13 +324,12 @@ int main(void) {
     );
 
     print_arvore(ptArv, 0);
-#endif
-
+*/
     char linha[TAM_BUFFER_REGEXP];
 
     while(fgets(linha, sizeof(linha), stdin)){
         pos = 0;
-        LOG("linha lida: %s\n", linha);
+        LOG("linha lida: %s", linha);
         input = linha;
 
         /* Trata o caso linha vazia */
@@ -345,13 +338,13 @@ int main(void) {
         }
 
         /* Ignora linhas comentadas com $ */
-        // if (linha[0] != '$') { 
+        if (linha[0] != '$') { 
         /* Parseia a linha */
         RegExp *ptCabeca = parse_regexp(); /* ponteiro para o inicio da arvore (nivel 0)*/
 
         /* Imprime para o usuário */
         print_arvore(ptCabeca, 0);
-        // }
+        }
     }
     
     return 0;

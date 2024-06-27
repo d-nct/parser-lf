@@ -1,10 +1,12 @@
 #!/bin/bash
 
-# Caminho para o executável
-EXEC=../parser
+# Caminhos executando dentro de tests
+# EXEC=../parser
+# TEST_CASES_DIR=./test_cases
 
-# Caminho para os casos de teste
-TEST_CASES_DIR=./test_cases
+# caminhos executando da raiz
+EXEC=./parser
+TEST_CASES_DIR=./tests/test_cases
 
 # Contadores de sucesso e falha
 SUCCESS=0
