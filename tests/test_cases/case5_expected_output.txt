@@ -1,1 +1,1 @@
-Erro de sintaxe na posição 4: esperava '\n', encontrei ')'
+Erro de sintaxe na posição 0: esperava '\n', encontrei ')'

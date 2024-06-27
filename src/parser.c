@@ -26,6 +26,7 @@
 /* ----------------- */
 const char *input; /* Ponteiro que direciona para um vetor de caracteres contendo 01 expressão regular */
 int pos; /* Posição do parser na linha */
+int num_parenteses_abertos = 0;
 
 /* Definição da estrutura de dados para as árvores de RegExp */
 /* --------------------------------------------------------- */
@@ -123,9 +124,9 @@ RegExp *new_union(RegExp *filho1, RegExp *filho2) {
  * @param c_esperado caracter que era esperado se não fosse o erro de sintaxe
 */
 void raiseSintaxError(int posicao, char c_recebido, char c_esperado) {
-    if (c_recebido == '\n') {
+    if (c_recebido == '\n' || c_recebido == '\0') {
         printf("Erro de sintaxe na posição %d: esperava '%c', encontrei '\\n'\n", posicao, c_esperado);
-    } else if (c_esperado == '\n') {
+    } else if (c_esperado == '\n' || c_esperado == '\0') {
         printf("Erro de sintaxe na posição %d: esperava '\\n', encontrei '%c'\n", posicao, c_recebido);
     } else {
         printf("Erro de sintaxe na posição %d: esperava '%c', encontrei '%c'\n", posicao, c_esperado, c_recebido);
@@ -204,23 +205,32 @@ void print_arvore(RegExp* arvore, int nivel) {
 /* Rotina principal do Parser */
 /* -------------------------- */
 char atual_caracter(){
+    LOG("Consultado: %c", input[pos]);
     return input[pos];
 }
 
 void consome_caracter() {
+    LOG("Consumido: %c", input[pos]);
+    /* Checa se abrimos parênteses */
+    if (input[pos] == '(') {
+        num_parenteses_abertos++;
+    }
+
+    /* Consome o caractere */
     pos++;
-    /*verifica se a incrementação ultrapassou o limite*/
+  
+    /* Confirma que não vamos acessar memória que não é do programa */ 
     if (pos > TAM_BUFFER_REGEXP){
-        printf("pos: %d    buff: %d\n", pos, TAM_BUFFER_REGEXP);
+        LOG("pos: %d    buff: %d\n", pos, TAM_BUFFER_REGEXP);
         raiseRegExpOverflowError();
     }
 }
 
 void exige_caractere(char c) {
-    if (atual_caracter() == c) {
+    if (input[pos] == c) {
         consome_caracter();
     } else {
-        raiseSintaxError(pos, atual_caracter(), c);
+        raiseSintaxError(pos, input[pos], c);
     }
 }
 
@@ -234,7 +244,33 @@ static RegExp *parse_basico();
 /* Implementação das Funções do Parser */
 static RegExp *parse_regexp() {
     LOG("entrei em: parse_regexp");
-    return parse_uniao();
+    char c = atual_caracter();
+    RegExp *e;
+
+    /* Verifica se o caractere não é especial e inesperado */
+    switch (c) {
+        case ('|'): 
+            raiseSintaxError(pos, c, '\n'); 
+            break;
+        case ('*'):
+            if (pos == 0) { /* Se * não estiver no início, não tem problema */
+                raiseSintaxError(pos, c, '\n'); 
+            }
+            /* fall throught intencional */
+            __attribute__((fallthrough));
+        case ( ')' ):
+            if (num_parenteses_abertos > 0) {
+                exige_caractere(')');
+                num_parenteses_abertos--;
+            } else {
+                raiseSintaxError(pos, c, '\n'); 
+            }
+            /* fall throught intencional */
+            __attribute__((fallthrough));
+        default:
+            e = parse_uniao();
+    }
+    return e;
 }
 
 static RegExp *parse_uniao() {
@@ -253,10 +289,11 @@ static RegExp *parse_uniao() {
 static RegExp *parse_concat() {
     LOG("entrei em: parse_concat");
     RegExp *e1, *e2;  
+    char c = atual_caracter();
     e1 = NULL;  
 
-    /* Loop para analisar caracteres enquanto não encontra '|' ou ')' */
-    while (atual_caracter() && atual_caracter() != '|' && atual_caracter() != ')') {
+    /* Loop para analisar caracteres enquanto não encontra '|' */
+    while (c && c != '|') {
         e2 = parse_estrela();
         /* Se e1 ainda não foi definida*/ 
         if (e1 == NULL) {
@@ -277,7 +314,13 @@ static RegExp *parse_estrela() {
     RegExp *base;
 
     /* Analisa a expressão básica */
-    base = parse_basico(); 
+    if (atual_caracter() == '(') {
+        exige_caractere('(');
+        base = parse_basico(); 
+        exige_caractere(')');
+    } else {
+        base = parse_basico();
+    }
     
     while (atual_caracter() == '*') {
         /* Consome e ignora o '*' */
@@ -292,21 +335,34 @@ static RegExp *parse_basico() {
     LOG("entrei em: parse_basico");
     char c = atual_caracter(); 
 
-    if (c == '(') { 
-        /* Consome o '(' */
-        exige_caractere('(');
-        /* Analisa a sub-expressão entre parênteses */
-        RegExp *subExpressao = parse_regexp();
-        /* Verifica se a sub-expressão fecha corretamente*/
-        exige_caractere(')');
-        return subExpressao; 
+    switch (c) {
+        case ( '(' ): /* Teremos sub expressão complexa */
+            /* Consome o '(' */
+            exige_caractere('('); 
+            /* Analisa a sub-expressão entre parênteses */
+            RegExp *subExpressao = parse_regexp();
+            /* Verifica se a sub-expressão fecha corretamente*/
+            exige_caractere(')');
+            return subExpressao; 
 
-    } else if (c != '|' || c != ')' || c != '*') {  /* Verifica se o caractere é especial e inesperado */
-        consome_caracter();
-        return new_char(c);  /* Retorna uma expressão regular com o caractere */
+        case ('|'): case ('*'): /* Caracteres inválidos */
+            raiseSintaxError(pos, c, '\n'); 
+            break;
 
+        case ( ')' ): /* Fecha parenteses que pode ou não estar certo */
+            if (num_parenteses_abertos > 0) {
+                num_parenteses_abertos--;
+                exige_caractere(')');
+            } else {
+                raiseSintaxError(pos, c, '\n'); 
+            }
+            /* fall throught intencional */
+            __attribute__((fallthrough));
+        default: /* Caractere simples */
+/*            consome_caracter();*/
+            return new_char(atual_caracter());
     }
-    raiseSintaxError(pos, c, '\n'); 
+
     return NULL; /* para evitar warning */
 }
 
