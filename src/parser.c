@@ -11,6 +11,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
+#include<stdbool.h>
 
 /* Configurações de Ambiente */
 /* --------------------- */
@@ -119,17 +120,16 @@ RegExp *new_union(RegExp *filho1, RegExp *filho2) {
 /**
  * @brief Joga um erro de sintaxe informativo e encerra o programa.
  * 
- * @param posicao posição do erro de sintaxe dentro da regexp
  * @param c_recebido caracter que foi recebido
  * @param c_esperado caracter que era esperado se não fosse o erro de sintaxe
 */
-void raiseSintaxError(int posicao, char c_recebido, char c_esperado) {
+void raiseSintaxError(char c_recebido, char c_esperado) {
     if (c_recebido == '\n' || c_recebido == '\0') {
-        printf("Erro de sintaxe na posição %d: esperava '%c', encontrei '\\n'\n", posicao, c_esperado);
+        printf("Erro de sintaxe na posição %d: esperava '%c', encontrei '\\n'\n", pos, c_esperado);
     } else if (c_esperado == '\n' || c_esperado == '\0') {
-        printf("Erro de sintaxe na posição %d: esperava '\\n', encontrei '%c'\n", posicao, c_recebido);
+        printf("Erro de sintaxe na posição %d: esperava '\\n', encontrei '%c'\n", pos, c_recebido);
     } else {
-        printf("Erro de sintaxe na posição %d: esperava '%c', encontrei '%c'\n", posicao, c_esperado, c_recebido);
+        printf("Erro de sintaxe na posição %d: esperava '%c', encontrei '%c'\n", pos, c_esperado, c_recebido);
     }
 
     exit(1);
@@ -235,6 +235,21 @@ void exige_caractere(char c) {
     }
 }
 
+bool eh_especial(char c) {
+    if (c == '|' || c == '*' || c == '(' || c == ')'
+        || c == '\n' || c == '\0') {
+        return true;
+    }
+    return false;
+}
+
+bool eh_normal(char c) {
+    if (c >= 0x20 && c <= 0x7E) {
+        return true;
+    } 
+    return false;
+}
+
 /* Declaração das Funções do Parser */
 static RegExp *parse_regexp();
 static RegExp *parse_uniao();
@@ -245,28 +260,138 @@ static RegExp *parse_basico();
 /* Implementação das Funções do Parser */
 static RegExp *parse_regexp() {
     LOG("entrei em: parse_regexp");
-    RegExp *e;
     char c = atual_caracter();
+
+    /* Bloqueios contra erros de Sintaxe */
+    if (c == '*' || c == ')' || c == '*') {
+        raiseSintaxError(c, '\n') /* TODO: como saber o caractere esperado correto?
+                                      se a regexp for (*) esperamos ) na pos 1
+                                      se a regexp for * esperamos \n na pos 0 */
+    } 
+
+    return parse_uniao();
 }
 
+/* Lista de uma ou mais concatenações separadas por `|` */
 static RegExp *parse_uniao() {
-    LOG("entrei em: parse_union");
+    LOG(" entrei em: parse_union");
     RegExp *e1, *e2;
+    e2 = NULL;
+
+    /* Primeira concatenação (obrigatória) */
+    e1 = parse_concat();
+    LOG(" voltei para: parse_union");
+
+    /* Próximas concatenações (opcionais) */
+    while (atual_caracter() == '|') {
+        /* Consome o | */
+        exige_caractere('|');
+
+        /* Se é a primeira concatenação opcional */
+        if (e2 == NULL) {
+            LOG(" 1a concat opcional");
+            e2 = parse_concat();
+            LOG(" voltei para: parse_union");
+        }
+        /* Se não é a primeira concatenação opcional */
+        else {
+            LOG(" n-esima concat opcional");
+            e2 = new_concat(e2, parse_concat()); /* À direita */
+            LOG(" voltei para: parse_union");
+        }
+    }
+
+    /* Se não houve concatenação opcional */
+    if (e2 == NULL) {
+        e2 = new_empty();
+    }
+
+    return new_concat(e1, e2);
 }
 
+/* Lista potencialmente vazia de itens estrelados */
 static RegExp *parse_concat() {
-    LOG("entrei em: parse_concat");
-    RegExp *e1, *e2;  
+    LOG("  entrei em: parse_concat");
+    RegExp *e, *e_tmp;  
+    char c = atual_caracter();
+    
+    e = NULL; /* pode não haver item estrelado */
+    
+    while (c) {
+        e_tmp = parse_estrela();
+        LOG("  voltei para: parse_concat");
+
+        /* Verifica se é o primeiro item estrelado */
+        if (e == NULL) {
+            LOG("  1o item estrelado");
+            e = e_tmp;
+        } 
+        /* Se não é, concatena com os existentes */
+        else {
+            LOG("  n-esimo item estrelado");
+            e = new_concat(e, e_tmp);
+            LOG("  voltei para: parse_concat");
+        }
+    }
+
+    /* Se não houve item estrelado */
+    if (e == NULL) {
+        e = new_empty();
+    }
+    return e;
 } 
 
+/* Item básico, seguido de um ou mais estrelas */
 static RegExp *parse_estrela() {
-    LOG("entrei em: parse_estrela");
+    LOG("   entrei em: parse_estrela");
     RegExp *e;
+
+    /* Item basico obrigatório */
+    e = parse_basico();
+    LOG("   voltei para: parse_estrela");
+
+    /* Consome as estrelas */
+    while (atual_caracter() == '*') {
+        exige_caractere('*');
+
+        e = new_star(e); /* Estrela o cara que encontramos anteriormente */
+    }
+
+    return e; /* Tudo bem se não tiver estrela */
 }
 
+/* Um caractere não-especial, ou uma regexp entre parenteses */
 static RegExp *parse_basico() {
-    LOG("entrei em: parse_basico");
+    LOG("    entrei em: parse_basico");
     RegExp *e;
+    char c = atual_caracter();
+    
+    /* Caso regexp entre parenteses */
+    if (c == '(') {
+        LOG("    encontrei regexp entre parenteses");
+        exige_caractere('(');
+        
+        e = parse_regexp();
+        LOG("    voltei para: parse_basico");
+
+        exige_caractere(')');
+
+        return e;
+    }
+
+    /* Caso caractere não especial */
+    else if ( eh_normal(c) ) {
+        LOG("    encontrei carac não especial");
+        e = new_char(c);
+        return e;
+    }
+
+    /* Lidando com possíveis erros de sintaxe */
+    else if ( eh_especial(c) ) {
+        raiseSintaxError(c, '\n');
+    }
+
+    return NULL;
 }
 
 int main(void) {

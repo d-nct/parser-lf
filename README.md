@@ -15,6 +15,19 @@ simples -> CARACTERE |
            '(' regexp ')'
 ```
 
+Os caracteres `|*()` e também `\n` e `\0` são considerados especiais.
+Todos os outros caracteres são considerados "normais".
+
+O operador de estrela tem precedência mais forte que concatenação, que por
+sua vez tem preferência mais forte que união. A regex da string vazia é
+representada por uma concatenação de 0 elementos. A gramática fica assim:
+
+    Regexp -> Uniao
+    Uniao -> lista de uma ou mais concatenações, separadas por `|`
+    Concat -> lista potencialmente vazia de itens estrelados
+    Estrela -> item básico, seguido de zero ou mais estrelas
+    Basico -> um caractere não-especial, ou uma regexp entre parênteses.
+
 # Uso do Repositório
 
 ## Rodar testes
