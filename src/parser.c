@@ -288,7 +288,7 @@ static RegExp *parse_uniao() {
         /* Se não é a primeira concatenação opcional */
         else {
             LOG(" n-esima concat opcional");
-            e2 = new_concat(e2, parse_concat()); /* À direita */
+            e2 = new_union(e2, parse_concat()); /* À direita */
             LOG(" voltei para: parse_union");
         }
     }
@@ -298,7 +298,7 @@ static RegExp *parse_uniao() {
         return e1;
     }
 
-    return new_concat(e1, e2);
+    return new_union(e1, e2);
 }
 
 /* Lista potencialmente vazia de itens estrelados */
@@ -308,7 +308,7 @@ static RegExp *parse_concat() {
     
     e = NULL; /* pode não haver item estrelado */
     
-    while ( !eh_fim_de_regexp( atual_caracter() ) ) {
+    while ( !eh_fim_de_regexp( atual_caracter() ) && atual_caracter() != '|' && atual_caracter() != ')' ) {
         e_tmp = parse_estrela();
         LOG("  voltei para: parse_concat");
 
@@ -321,7 +321,13 @@ static RegExp *parse_concat() {
         else {
             LOG("  n-esimo item");
             e = new_concat(e, e_tmp);
-            LOG("  voltei para: parse_concat");
+        }
+    }
+
+    /* Lida com erro de sintaxe */
+    if (atual_caracter() == ')') {
+        if (num_parenteses_abertos == 0) {
+            raiseSintaxError('\n', ')');
         }
     }
 
