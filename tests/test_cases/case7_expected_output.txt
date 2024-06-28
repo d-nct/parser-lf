@@ -1,0 +1,7 @@
+CONCAT
+  CHAR a
+  CONCAT
+    CHAR b
+    STAR
+      STAR
+        CHAR c

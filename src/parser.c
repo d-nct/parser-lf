@@ -301,9 +301,11 @@ static RegExp *parse_concat() {
 
         /* Se e1 ainda não foi definida*/ 
         if (e1 == NULL) {
+            LOG("  Entrei no if");
             /* Define e1 como a primeira sub-expressão encontrada */ 
             e1 = e2;  
         } else {  
+            LOG("  Entrei no else");
             /* Concatena a nova sub-expressão com a já existente */
             e1 = new_concat(e1, e2); 
         }

@@ -1,0 +1,7 @@
+UNION
+  CONCAT
+    CHAR a
+    CHAR b
+  UNION
+    EMPTY
+    CHAR c
