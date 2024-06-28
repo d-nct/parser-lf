@@ -245,133 +245,28 @@ static RegExp *parse_basico();
 /* Implementação das Funções do Parser */
 static RegExp *parse_regexp() {
     LOG("entrei em: parse_regexp");
-    char c = atual_caracter();
     RegExp *e;
-
-    /* Verifica se o caractere não é especial e inesperado */
-    switch (c) {
-        case ('|'): 
-            raiseSintaxError(pos, c, '\n'); 
-            break;
-        case ('*'):
-            if (pos == 0) { /* Se * não estiver no início, não tem problema */
-                raiseSintaxError(pos, c, '\n'); 
-            }
-            /* fall throught intencional */
-            __attribute__((fallthrough));
-        case ( ')' ):
-            if (num_parenteses_abertos > 0) {
-                exige_caractere(')');
-                num_parenteses_abertos--;
-            } else {
-                raiseSintaxError(pos, c, '\n'); 
-            }
-            /* fall throught intencional */
-            __attribute__((fallthrough));
-        default:
-            e = parse_uniao();
-    }
-    return e;
+    char c = atual_caracter();
 }
 
 static RegExp *parse_uniao() {
     LOG("entrei em: parse_union");
     RegExp *e1, *e2;
-
-    e1 = parse_concat();
-    while (atual_caracter() == '|') {
-        exige_caractere('|'); /* Consome '|' avançando uma posição */
-        e2 = parse_concat();
-        e1 = new_union(e1, e2);
-    }
-    return e1;
 }
 
 static RegExp *parse_concat() {
     LOG("entrei em: parse_concat");
     RegExp *e1, *e2;  
-    char c = atual_caracter();
- 
-    e1 = NULL;  
-
-    /* Loop para analisar caracteres enquanto não encontra '|' */
-    while (c && c != '|' && c != '\n') {
-        e2 = parse_estrela();
-        LOG("Voltei para: parse_concat");
-
-        /* Se e1 ainda não foi definida*/ 
-        if (e1 == NULL) {
-            LOG("  Entrei no if");
-            /* Define e1 como a primeira sub-expressão encontrada */ 
-            e1 = e2;  
-        } else {  
-            LOG("  Entrei no else");
-            /* Concatena a nova sub-expressão com a já existente */
-            e1 = new_concat(e1, e2); 
-        }
-
-        c = atual_caracter();
-        if (c == ')') {
-            raiseSintaxError(pos, c, '\n');
-        }
-    }
-
-    /* Retorna a árvore de sintaxe da concatenação ou uma expressão vazia se nenhuma sub-expressão foi encontrada */
-    return e1 == NULL ? new_empty() : e1;
 } 
 
 static RegExp *parse_estrela() {
     LOG("entrei em: parse_estrela");
-    RegExp *base;
-
-    /* Analisa a expressão básica */
-    if (atual_caracter() == '(') {
-        LOG("ENTREI NO CASO PARTENTES");
-        exige_caractere('(');
-        base = parse_basico(); 
-        exige_caractere(')');
-    } else {
-        base = parse_basico();
-    }
-    LOG("voltei para: parse_estrela");
-    
-    while (atual_caracter() == '*') {
-        /* Consome e ignora o '*' */
-        exige_caractere('*'); 
-        base = new_star(base);
-    }
-
-    return base;
+    RegExp *e;
 }
 
 static RegExp *parse_basico() {
     LOG("entrei em: parse_basico");
-    char c = atual_caracter(); 
-
-    switch (c) {
-        case ( '(' ): /* Teremos sub expressão complexa */
-            /* Consome o '(' */
-            exige_caractere('('); 
-            /* Analisa a sub-expressão entre parênteses */
-            RegExp *subExpressao = parse_regexp();
-            /* Verifica se a sub-expressão fecha corretamente*/
-            exige_caractere(')');
-            return subExpressao; 
-
-        case ('|'): case ('*'): /* Caracteres inválidos */
-            raiseSintaxError(pos, c, '\n'); 
-            break;
-
-        case ( ')' ): /* O parênteses tem que ser fechado em parse_estrela. */
-                      /* Se aqui temos ')', é pq é EMPTY */
-            return new_empty();
-
-        default: /* Caractere simples */
-            consome_caracter();
-            return new_char(c);
-    }
-
-    return NULL; /* para evitar warning */
+    RegExp *e;
 }
 
 int main(void) {
