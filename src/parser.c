@@ -120,10 +120,10 @@ RegExp *new_union(RegExp *filho1, RegExp *filho2) {
 /**
  * @brief Joga um erro de sintaxe informativo e encerra o programa.
  * 
- * @param c_recebido caracter que foi recebido
  * @param c_esperado caracter que era esperado se não fosse o erro de sintaxe
+ * @param c_recebido caracter que foi recebido
 */
-void raiseSintaxError(char c_recebido, char c_esperado) {
+void raiseSintaxError(char c_esperado, char c_recebido) {
     if (c_recebido == '\n' || c_recebido == '\0') {
         printf("Erro de sintaxe na posição %d: esperava '%c', encontrei '\\n'\n", pos, c_esperado);
     } else if (c_esperado == '\n' || c_esperado == '\0') {
@@ -142,24 +142,6 @@ void raiseRegExpOverflowError() {
     printf("Erro: overflow no tamanho do buffer da RegExp.\n");
 
     exit(2);
-}
-
-/**
- * @brief Caracter espacial inesperado na posição
-*/
-/*
- void raiseSpecialCharError(char c, int pos){
-     printf("Caracter especial não esperado!\n");
- }
-*/
-
-/**
- * @brief Erro lançado caso haja algo fora do comum
-*/
-void raiseSuddenEnd(){
-    printf("Erro inesperado! Fim do programa!\n");
-
-    exit(3);
 }
 
 /**
@@ -233,7 +215,7 @@ void exige_caractere(char c) {
         consome_caracter();
     } else {
         LOG("Erro ao consumir caractere");
-        raiseSintaxError(input[pos], c);
+        raiseSintaxError(c, input[pos]);
     }
 }
 
@@ -242,13 +224,6 @@ bool eh_especial(char c) {
         || c == '\n' || c == '\0') {
         return true;
     }
-    return false;
-}
-
-bool eh_normal(char c) {
-    if (c >= 0x20 && c <= 0x7E) {
-        return true;
-    } 
     return false;
 }
 
@@ -274,11 +249,11 @@ static RegExp *parse_regexp() {
     /* Bloqueios contra erros de Sintaxe */
     switch (c) {
         case '*':
-            raiseSintaxError(c, '\n');
+            raiseSintaxError('\n', c);
             break;
         case ')': /* Caso do parênteses exige mais detalhe */
             if (num_parenteses_abertos == 0) { /* De fato, erro */
-                raiseSintaxError(c, '\n');
+                raiseSintaxError('\n', c);
                 break;
             } else { /* Serão fechados em parser_basico e a regexp atual é vazia */
                 return new_empty();
@@ -389,14 +364,14 @@ static RegExp *parse_basico() {
         
         e = parse_regexp();
         LOG("    voltei para: parse_basico");
-
+        
         exige_caractere(')');
 
         return e;
     }
 
     /* Caso caractere não especial */
-    else if ( eh_normal(c) ) {
+    else if ( !eh_especial(c) ) {
         LOG("    encontrei carac não especial");
         consome_caracter();
         e = new_char(c);
@@ -404,8 +379,16 @@ static RegExp *parse_basico() {
     }
 
     /* Lidando com possíveis erros de sintaxe */
-    else if ( eh_especial(c) ) {
-        raiseSintaxError(c, '\n');
+    else { /* Caractere especial */
+        /* Maldito parênteses */
+        if (c == ')') {
+            if (num_parenteses_abertos == 0) { /* Fechar parênteses sem ter aberto é erro */
+                raiseSintaxError('\n', c);
+            } else { /* Fecha o parênteses aberto */
+                exige_caractere(')');
+                return new_empty();
+            }
+        }
     }
 
     return NULL;
