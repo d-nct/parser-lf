@@ -28,11 +28,5 @@ make clean && make && ./tests/run_tests.sh
 
 Aí você precisa colocar o conteúdo do caso/teste no arquivo `input.txt`, na raíz e executar o comando:
 ```
-make clean && make debug && ./parser < input.txt
+make clean && make debug && ./parser < ./tests/input.txt
 ```
-
-(ab)
-$()*
-$(a
-$(a))
-
