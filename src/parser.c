@@ -211,9 +211,11 @@ char atual_caracter(){
 
 void consome_caracter() {
     LOG("Consumido: %c", input[pos]);
-    /* Checa se abrimos parênteses */
+    /* Checa os parênteses */
     if (input[pos] == '(') {
         num_parenteses_abertos++;
+    } else if (input[pos] == ')') {
+        num_parenteses_abertos--;
     }
 
     /* Consome o caractere */
@@ -231,7 +233,7 @@ void exige_caractere(char c) {
         consome_caracter();
     } else {
         LOG("Erro ao consumir caractere");
-        raiseSintaxError(pos, input[pos], c);
+        raiseSintaxError(input[pos], c);
     }
 }
 
@@ -250,6 +252,13 @@ bool eh_normal(char c) {
     return false;
 }
 
+bool eh_fim_de_regexp(char c) {
+    if (c == '\n' || c == '\0') {
+        return true;
+    }
+    return false;
+}
+
 /* Declaração das Funções do Parser */
 static RegExp *parse_regexp();
 static RegExp *parse_uniao();
@@ -263,13 +272,21 @@ static RegExp *parse_regexp() {
     char c = atual_caracter();
 
     /* Bloqueios contra erros de Sintaxe */
-    if (c == '*' || c == ')' || c == '*') {
-        raiseSintaxError(c, '\n') /* TODO: como saber o caractere esperado correto?
-                                      se a regexp for (*) esperamos ) na pos 1
-                                      se a regexp for * esperamos \n na pos 0 */
-    } 
-
-    return parse_uniao();
+    switch (c) {
+        case '*':
+            raiseSintaxError(c, '\n');
+            break;
+        case ')': /* Caso do parênteses exige mais detalhe */
+            if (num_parenteses_abertos == 0) { /* De fato, erro */
+                raiseSintaxError(c, '\n');
+                break;
+            } else { /* Serão fechados em parser_basico e a regexp atual é vazia */
+                return new_empty();
+            }
+        default:
+            return parse_uniao();
+    }
+    return NULL; /* Evita Wreturn-type */
 }
 
 /* Lista de uma ou mais concatenações separadas por `|` */
@@ -303,7 +320,7 @@ static RegExp *parse_uniao() {
 
     /* Se não houve concatenação opcional */
     if (e2 == NULL) {
-        e2 = new_empty();
+        return e1;
     }
 
     return new_concat(e1, e2);
@@ -313,22 +330,21 @@ static RegExp *parse_uniao() {
 static RegExp *parse_concat() {
     LOG("  entrei em: parse_concat");
     RegExp *e, *e_tmp;  
-    char c = atual_caracter();
     
     e = NULL; /* pode não haver item estrelado */
     
-    while (c) {
+    while ( !eh_fim_de_regexp( atual_caracter() ) ) {
         e_tmp = parse_estrela();
         LOG("  voltei para: parse_concat");
 
         /* Verifica se é o primeiro item estrelado */
         if (e == NULL) {
-            LOG("  1o item estrelado");
+            LOG("  1o item");
             e = e_tmp;
         } 
         /* Se não é, concatena com os existentes */
         else {
-            LOG("  n-esimo item estrelado");
+            LOG("  n-esimo item");
             e = new_concat(e, e_tmp);
             LOG("  voltei para: parse_concat");
         }
@@ -382,6 +398,7 @@ static RegExp *parse_basico() {
     /* Caso caractere não especial */
     else if ( eh_normal(c) ) {
         LOG("    encontrei carac não especial");
+        consome_caracter();
         e = new_char(c);
         return e;
     }
