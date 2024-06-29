@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -ansi
 SRC_DIR = src
 TARGET = parser
-FILENAME = parser.c
+FILENAME = main.c
 TARGET_DEBUG = debug
 
 .PHONY: clean
