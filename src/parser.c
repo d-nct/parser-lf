@@ -16,7 +16,7 @@
 
 /* Configurações de Ambiente */
 /* --------------------- */
-#define TAM_BUFFER_REGEXP 10
+#define TAM_BUFFER_REGEXP 1024
 
 #ifdef DEBUG
 #define LOG(fmt, ...) printf("DEBUG: "fmt "\n", # #__VA_ARGS__)
@@ -63,10 +63,45 @@ RegExp;
 
 /* Declaração dos Construtores */
 /* --------------------------- */
+/**
+ * @brief Cria uma árvore/nó do tipo EMPTY.
+ * 
+ * @return RegExp* raíz da árvore.
+ */
 RegExp * new_empty();
+
+/**
+ * @brief Cria uma árvore/nó do tipo CHAR.
+ * 
+ * @param c caractere do nó.
+ * @return RegExp* raíz da árvore.
+ */
 RegExp * new_char(char c);
+
+/**
+ * @brief Cria uma árvore/nó do tipo STAR.
+ * 
+ * @param filho é a subárvore filha
+ * @return RegExp* é a raíz da árvore.
+ */
 RegExp * new_star(RegExp * filho);
+
+/**
+ * @brief Cria uma árvore/nó do tipo CONCAT.
+ * 
+ * @param filho1 é a subárvore filha da esquerda.
+ * @param filho2 é a subárvore filha da direita.
+ * @return RegExp* é a raíz da árvore.
+ */
 RegExp * new_concat(RegExp * filho1, RegExp * filho2);
+
+/**
+ * @brief Cria uma árvore/nó do tipo UNION.
+ * 
+ * @param filho1 é a subárvore filha da esquerda.
+ * @param filho2 é a subárvore filha da direita.
+ * @return RegExp* é a raíz da árvore.
+ */
 RegExp * new_union(RegExp * filho1, RegExp * filho2);
 
 /* Implementação dos Construtores */
@@ -143,6 +178,8 @@ void raiseSintaxError(char c_esperado, char c_recebido) {
 
 /**
  * @brief Erro de RegExp maior que o buffer TAM_BUFFER_REGEXP
+ *
+ * TODO: Implementar um buffer dinâmico
  */
 void raiseRegExpOverflowError() {
   printf("Erro: overflow no tamanho do buffer da RegExp.\n");
@@ -154,7 +191,7 @@ void raiseRegExpOverflowError() {
  * @brief Função recursiva que recebe uma árvore e imprime no STDOUT.
  * 
  * @param arvore ponteiro para a raíz da árvore
- * @param nivel nível do ponteiro na árvore. Se  arvore  é a raiz, o nível deve ser 0
+ * @param nivel é o nível do ponteiro na árvore. Se  arvore  é a raiz, o nível deve ser 0
  */
 void print_arvore(RegExp * arvore, int nivel) {
   int i;
@@ -191,11 +228,21 @@ void print_arvore(RegExp * arvore, int nivel) {
 
 /* Rotina principal do Parser */
 /* -------------------------- */
+/**
+ * @brief Retorna o caractere atual do parser.
+ * 
+ * @return char caractere atual
+ */
 char atual_caracter() {
   LOG("Consultado: %c", input[pos]);
   return input[pos];
 }
 
+/**
+ * @brief Consome o caractere atual do parser.
+ *
+ * Essa função handle a quantidade de parenteses abertos e cuida de possíveis erros de buffer overflow.
+ */
 void consome_caracter() {
   LOG("Consumido: %c", input[pos]);
   /* Checa os parênteses */
@@ -215,6 +262,11 @@ void consome_caracter() {
   }
 }
 
+/**
+ * @brief Consome um caractere específico do parser.
+ * 
+ * @param c caractere a ser consumido
+ */
 void exige_caractere(char c) {
   if (input[pos] == c) {
     consome_caracter();
@@ -224,29 +276,69 @@ void exige_caractere(char c) {
   }
 }
 
+/**
+ * @brief Verifica se o caractere é especial.
+ * 
+ * @param c caractere a ser verificado
+ * @return true se o caractere é especial, false caso contrário
+ */
 bool eh_especial(char c) {
-  if (c == '|' || c == '*' || c == '(' || c == ')' ||
-    c == '\n' || c == '\0') {
-    return true;
-  }
-  return false;
+  return (c == '|' || c == '*' || c == '(' || c == ')' ||
+    c == '\n' || c == '\0');
 }
 
+/**
+ * @brief Verifica se o caractere é o fim da expressão regular.
+ * 
+ * @param c caractere a ser verificado
+ * @return true se o caractere é o fim da expressão regular, false caso contrário
+ */
 bool eh_fim_de_regexp(char c) {
-  if (c == '\n' || c == '\0') {
-    return true;
-  }
-  return false;
+  return (c == '\n' || c == '\0');
 }
 
 /* Declaração das Funções do Parser */
+/**
+ * @brief Parseia uma RegExp inteira. 
+ * 
+ * @return RegExp* raíz da árvore.
+ */
 static RegExp * parse_regexp();
+
+/**
+ * @brief Parseia uma união de RegExp.
+ * Lista de uma ou mais concatenações separadas por `|`.
+ *
+ * @return RegExp* raíz da árvore.
+ */
 static RegExp * parse_uniao();
+
+/**
+ * @brief Parseia uma concatenação de RegExp.
+ * Lista potencialmente vazia de itens estrelados.
+ *
+ * @return RegExp* raíz da árvore.
+ */
 static RegExp * parse_concat();
+
+/**
+ * @brief Parseia um item estrelado de RegExp.
+ * Item básico, seguido de um ou mais estrelas.
+ *
+ * @return RegExp* raíz da árvore.
+ */
 static RegExp * parse_estrela();
+
+/**
+ * @brief Parseia um item básico de RegExp.
+ * Um caractere não-especial, ou uma regexp entre parenteses.
+ *
+ * @return RegExp* raíz da árvore.
+ */
 static RegExp * parse_basico();
 
 /* Implementação das Funções do Parser */
+/* ---------------------------------- */
 static RegExp * parse_regexp() {
   LOG("entrei em: parse_regexp");
   char c = atual_caracter();
@@ -442,10 +534,10 @@ int main(void) {
 
     /* Trata o caso linha vazia */
     if (linha[strlen(linha) - 1] == '\n') {
-      linha[strlen(linha) - 1] = '\0'; /*remove o caractere newline*/
+      linha[strlen(linha) - 1] = '\0'; /* remove o caractere newline */
     }
 
-    /* Ignora linhas comentadas com $ */
+    /* Ignora linhas que começam com $ (comentário) */
     if (linha[0] != '$') {
       /* Parseia a linha */
       RegExp * ptCabeca = parse_regexp(); /* ponteiro para o inicio da arvore (nivel 0)*/
