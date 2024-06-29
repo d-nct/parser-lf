@@ -304,23 +304,31 @@ static RegExp *parse_uniao() {
 /* Lista potencialmente vazia de itens estrelados */
 static RegExp *parse_concat() {
     LOG("  entrei em: parse_concat");
-    RegExp *e, *e_tmp;  
+    RegExp *e, *atual, *ultimo, *filho_dir, *novo_filho_dir;
     
     e = NULL; /* pode não haver item estrelado */
     
     while ( !eh_fim_de_regexp( atual_caracter() ) && atual_caracter() != '|' && atual_caracter() != ')' ) {
-        e_tmp = parse_estrela();
+        atual = parse_estrela();
         LOG("  voltei para: parse_concat");
 
         /* Verifica se é o primeiro item estrelado */
         if (e == NULL) {
             LOG("  1o item");
-            e = e_tmp;
+            e = atual;
         } 
         /* Se não é, concatena com os existentes */
-        else {
+        else if (e->tag == TAG_CONCAT) {
             LOG("  n-esimo item");
-            e = new_concat(e, e_tmp);
+            novo_filho_dir = new_concat(ultimo->u.bin.filho2, atual);
+            filho_dir = novo_filho_dir;
+            ultimo->u.bin.filho2 = filho_dir;
+            ultimo = novo_filho_dir;
+        } else {
+            LOG("  2o item");
+            e = new_concat(e, atual);
+            ultimo = e;
+            filho_dir = e->u.bin.filho2;
         }
     }
 
