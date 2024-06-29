@@ -1,0 +1,7 @@
+CONCAT
+  CHAR a
+  CONCAT
+    CHAR b
+    CONCAT
+      CHAR c
+      CHAR d

@@ -1,0 +1,12 @@
+CONCAT
+  UNION
+    STAR
+      CONCAT
+        CHAR a
+        STAR
+          CHAR b
+    CONCAT
+      STAR
+        CHAR a
+      CHAR b
+  CHAR b
