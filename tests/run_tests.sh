@@ -6,7 +6,7 @@
 
 # caminhos executando da raiz
 EXEC=./parser
-TEST_CASES_DIR=./tests/test_cases
+TEST_CASES_DIR=./tests
 
 # Contadores de sucesso e falha
 SUCCESS=0
