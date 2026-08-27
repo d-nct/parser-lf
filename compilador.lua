@@ -443,9 +443,37 @@ function lexer_parse_numero()
         end
     end
 
+    -- NOTAÇAO CIENTÍFICA
+    if c == "e" or c == "E" then
+        eh_float = true
+        lexer_avanca() -- consome o e
+
+        local sinal_exp = 1
+        
+        -- verifica se há sinal no expoente
+        if c == "+" or c == "-" then
+            if c == "-" then
+                sinal_exp = -1
+            end
+            lexer_avanca() -- consome o sinal
+        end
+
+        local expoente = 0
+        -- consome os dígitos do expoente
+        while lexer_teste_eh_dec(c) do
+            local digito = lexer__char_to_dec(c)
+            expoente = (expoente * 10) + digito
+            lexer_avanca()
+        end
+
+        -- aplica a notação científica ao valor
+        valor = valor * (10 ^ (sinal_exp * expoente))
+    end
+
+
     -- gera o token
     local token = {}
-    if float then
+    if eh_float then
         token = Token(Tag["FLOAT"], valor, lin, col)
     else
         token = Token(Tag["NUMBER"], valor, lin, col)
