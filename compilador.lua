@@ -149,6 +149,7 @@ function lexer_teste_eh_newline(c)
         c == "\n" or
         c == "\r"
     )
+end
 
 
 function lexer_teste_eh_sep(c)
@@ -159,6 +160,30 @@ function lexer_teste_eh_sep(c)
         c == "\f" or
         c == "\v"
     )
+end
+
+
+function lexer_teste_eh_letra(c)
+    local byte = string.byte(c)
+    
+    -- Tabela ASCII: 
+    -- 'A' a 'Z' = 65 a 90
+    -- 'a' a 'z' = 97 a 122
+    return (byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122)
+end
+
+
+function lexer_teste_eh_numero(c)
+    local byte = string.byte(c)
+    
+    -- Tabela ASCII:
+    -- '0' a '9' = 48 a 57
+    return byte >= 48 and byte <= 57
+end
+
+
+function lexer_teste_eh_palavra_reservada(p)
+    -- TODO
 end
 
 
@@ -291,6 +316,20 @@ function lexer_get_token()
             return lexer_erro()
         end
     
+    -- Tratamento de Textos
+    elseif lexer_teste_eh_letra(c) or lexer_teste_eh_sep(c) then
+        -- anotamos a pos de início do identificador
+        local pos_inicio = pos
+        lexer_avanca()
+
+        -- consumimos o restante do identificador
+        while lexer_teste_eh_letra(c) or lexer_teste_eh_numero(c) then
+            lexer_avanca()
+        end
+        local identificador = buffer:sub(pos_inicio, pos)
+
+        if identificador
+
     
 
 
