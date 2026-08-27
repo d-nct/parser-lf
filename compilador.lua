@@ -116,6 +116,21 @@ function lexer_init()
         ["="] = "=",
     }
 
+    EscapedChars = {
+    ["a"]  = "\a",
+    ["b"]  = "\b",
+    ["f"]  = "\f",
+    ["n"]  = "\n",
+    ["r"]  = "\r",
+    ["t"]  = "\t",
+    ["v"]  = "\v",
+    ["\\"] = "\\",
+    ["\""] = "\"",
+    ["\'"] = "\'",
+    ["0"]  = "\0",
+    ["z"]  = "\z",
+    }
+
     -- String interia do arquivo
     buffer = io.read("*a") or ""
 
@@ -241,12 +256,10 @@ end
 
 function lexer__process_escaped()
     -- escapes newline
-    if c == "n" then
+    if c == "n" or c == "\n" then
         lexer_avanca()
-        return "\n"
-    elseif c == "r" then
-        lexer_avanca()
-        return "\r"
+        return EscapedChars[c]
+    end
 
     -- outros escapes
     return lexer__process_escaped_no_newline()
@@ -255,18 +268,11 @@ end
 
 function lexer__process_escaped_no_newline()
     -- escapes incomuns
-    if c == "a" then
-        lexer_avanca()
-        return "\a"
-    elseif c == "b" then
-        lexer_avanca()
-        return "\b"
-    elseif c == "f" then
-        lexer_avanca()
-        return "\f"
-    elseif c == "z" then
-        lexer_avanca()
-        return "\z"
+    if EscapedChars[c] ~= nil then -- verifica se é conhecido
+        if c ~= "n" or c ~= "\n" then
+            lexer_avanca()
+            return EscapedChars[c]
+        end
 
     -- Escapes de string avançados (decimal \32, hexa \x0A, unicode \u{230}, \z)
     -- TODO
