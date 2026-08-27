@@ -78,32 +78,32 @@ function lexer_init()
         ["while"]    = "while",
 
         -- Operadores
-        ["+"]   = "+", -- ok
-        ["-"]   = "-", -- ok
-        ["*"]   = "*", -- ok
-        ["/"]   = "/", -- ok
-        ["%"]   = "%", -- ok
-        ["^"]   = "^", -- ok
-        ["#"]   = "#", -- ok
-        ["=="]  = "==", -- ok
-        ["~="]  = "~=", -- ok
-        ["<="]  = "<=", -- ok
-        [">="]  = ">=", -- ok
-        ["<"]   = "<", -- ok
-        [">"]   = ">", -- ok
-        ["="]   = "=", -- ok
-        ["("]   = "(", -- ok
-        [")"]   = ")", -- ok
-        ["{"]   = "{", -- ok
-        ["}"]   = "}", -- ok
-        ["["]   = "[", -- ok
-        ["]"]   = "]", -- ok
-        [";"]   = ";", -- ok
-        [":"]   = ":", -- ok
-        [","]   = ",", -- ok
-        ["."]   = "." -- ok
-        [".."]  = "..", -- ok
-        ["..."] = "..." -- ok
+        ["+"]   = "+",
+        ["-"]   = "-",
+        ["*"]   = "*",
+        ["/"]   = "/",
+        ["%"]   = "%",
+        ["^"]   = "^",
+        ["#"]   = "#",
+        ["=="]  = "==",
+        ["~="]  = "~=",
+        ["<="]  = "<=",
+        [">="]  = ">=",
+        ["<"]   = "<",
+        [">"]   = ">",
+        ["="]   = "=",
+        ["("]   = "(",
+        [")"]   = ")",
+        ["{"]   = "{",
+        ["}"]   = "}",
+        ["["]   = "[",
+        ["]"]   = "]",
+        [";"]   = ";",
+        [":"]   = ":",
+        [","]   = ",",
+        ["."]   = ".",
+        [".."]  = "..",
+        ["..."] = "..."
     }
 
     -- String interia do arquivo
@@ -183,7 +183,19 @@ end
 
 
 function lexer_teste_eh_palavra_reservada(p)
-    -- TODO
+    -- Verifica se é Tag conhecida (não necessariamente reservada)
+    if Tag[p] ~= nil then
+        -- Ignora tags de categorias (são strings válidas)
+        return not (
+            p == "EOF" or 
+            p == "NUMBER" or
+            p == "STRING" or
+            p == "NAME" or
+            p == "FLOAT"
+        )
+        end
+    end
+    return false
 end
 
 
@@ -194,6 +206,8 @@ function lexer_erro()
         lin,
         col
     ))
+
+    os.exit(1)
 end
 
 
@@ -328,9 +342,20 @@ function lexer_get_token()
         end
         local identificador = buffer:sub(pos_inicio, pos)
 
-        if identificador
+        if lexer_teste_eh_palavra_reservada(identificador) then
+            return Token(Tag[identificador], nil, lin, col)
+        else
+            return Token(Tag["NAME"], identificador, lin, col)
+        end
 
+    elseif lexer_teste_eh_sep(c) then
+        while lexer_teste_eh_sep(c) then
+            lexer_avanca()
+        end
+
+        return lexer_get_token()
     
-
-
+    else
+        return lexer_erro()
+    end
 end
