@@ -106,6 +106,16 @@ function lexer_init()
         ["..."] = "..."
     }
 
+    -- Tabela de "abre" e "fecha"
+    Pares = {
+        ["("] = ")",
+        ["["] = "]",
+        ["{"] = "}",
+        ['"'] = '"',
+        ["'"] = "'",
+        ["="] = "=",
+    }
+
     -- String interia do arquivo
     buffer = io.read("*a") or ""
 
@@ -199,6 +209,20 @@ function lexer_teste_eh_palavra_reservada(p)
 end
 
 
+function lexer_teste_eh_escape_string(c)
+    return (
+        c == "\a" or
+        c == "\b" or
+        c == "\f" or
+        c == "\v" or
+        c == "\32" or
+        c == "\x0A" or
+        c == "\u{230}" or
+        c == "\z"
+    )
+end
+
+
 -- Imprime uma mensagem de erro pouco explicativa
 function lexer_erro()
     print(string.format(
@@ -208,6 +232,92 @@ function lexer_erro()
     ))
 
     os.exit(1)
+end
+
+
+function lexer_parse_string()
+    local token_lin = lin
+    local token_col = col
+    local conteudo = ""
+    local delimitador = c
+
+    -- STRINGS CURTAS ("..." ou '...')
+    if delimitador == '"' or delimitador == "'" then
+        lexer_avanca() -- consome a aspa de abertura
+
+        while c ~= nil and c ~= delimitador do
+            if lexer_teste_eh_newline(c) then
+                lexer_erro() -- quebra de linha literal não é permitida
+            elseif c == "\\" then
+                -- preserva o caractere de escape e o caractere seguinte
+                conteudo = conteudo .. c
+                lexer_avanca()
+                if c == nil then lexer_erro() end
+                conteudo = conteudo .. c
+            else
+                conteudo = conteudo .. c
+            end
+            lexer_avanca()
+        end
+
+        if c == nil then lexer_erro() end -- fim de arquivo sem fechar aspas
+        lexer_avanca() -- consome a aspas de fechamento
+
+        return Token(Tag["STRING"], conteudo, token_lin, token_col)
+
+    -- STRINGS LONGAS ([[...]], [=[...]=], etc)
+    elseif delimitador == "[" then
+        local num_iguais = 0
+        
+        lexer_avanca() -- Consome o primeiro '['
+        
+        while c == "=" do
+            num_iguais = num_iguais + 1
+            lexer_avanca()
+        end
+        
+        if c ~= "[" then
+            -- formato inválido (não formou um [[ ou [=[)
+            lexer_erro()
+        end
+        
+        lexer_avanca() -- Consome o segundo '['
+
+        -- itera o conteúdo
+        local fechou = false
+        while c ~= nil or not fechou do
+            if c == "]" then
+                -- verifica se fechou corretamente
+                local offset = 0
+                while lexer__get_char(offset) == "=" do
+                    offset = offset + 1
+                end
+                
+                if lexer__get_char(offset) == "]" and offset == num_iguais then
+                    -- match exato de fechamento
+                    fechou = true
+                    
+                    -- itera para consumir a tag de fechamento
+                    lexer_avanca() -- consome o ']'
+                    
+                    local i = 1
+                    while i <= num_iguais do
+                        lexer_avanca()
+                        i = i + 1
+                    end
+                end
+            end
+            
+            conteudo = conteudo .. c
+            lexer_avanca()
+        end
+
+        if not fechou then lexer_erro() end
+
+        return Token(Tag["STRING"], conteudo, token_lin, token_col)
+    end
+
+    lexer_erro()
 end
 
 
@@ -253,8 +363,12 @@ function lexer_get_token()
         lexer_avanca()
         return Token(Tag["}"], nil, lin, col)
     elseif c == "[" then
-        lexer_avanca()
-        return Token(Tag["["], nil, lin, col)
+        if lexer__get_char(0) == "[" or lexer__get_char(0) == "=" then
+            return lexer_parse_string()
+        else
+            lexer_avanca()
+            return Token(Tag["["], nil, lin, col)
+        end
     elseif c == "]" then
         lexer_avanca()
         return Token(Tag["]"], nil, lin, col)
@@ -267,6 +381,8 @@ function lexer_get_token()
     elseif c == "," then
         lexer_avanca()
         return Token(Tag[","], nil, lin, col)
+    elseif c == "\"" or c == "'" then
+        return lexer_parse_string()
 
     elseif c == "~" then
         lexer_avanca()
@@ -331,25 +447,28 @@ function lexer_get_token()
         end
     
     -- Tratamento de Textos
-    elseif lexer_teste_eh_letra(c) or lexer_teste_eh_sep(c) then
+    elseif lexer_teste_eh_letra(c) or c == "_" then
         -- anotamos a pos de início do identificador
         local pos_inicio = pos
-        lexer_avanca()
 
         -- consumimos o restante do identificador
-        while lexer_teste_eh_letra(c) or lexer_teste_eh_numero(c) then
+        while lexer_teste_eh_letra(c) or c == "_" or  lexer_teste_eh_numero(c) do
             lexer_avanca()
         end
-        local identificador = buffer:sub(pos_inicio, pos)
+        local identificador = buffer:sub(pos_inicio, pos - 1)
 
         if lexer_teste_eh_palavra_reservada(identificador) then
             return Token(Tag[identificador], nil, lin, col)
         else
             return Token(Tag["NAME"], identificador, lin, col)
         end
+    
+    elseif c == "\"" then
+        return lexer_parse_string()
+
 
     elseif lexer_teste_eh_sep(c) then
-        while lexer_teste_eh_sep(c) then
+        while lexer_teste_eh_sep(c) do
             lexer_avanca()
         end
 
