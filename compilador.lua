@@ -157,8 +157,8 @@ end
 
 function lexer_teste_eh_newline(c)
     return (
-        c == "\n" or
-        c == "\r"
+        (c == "\\" and c2 == "n") or
+        (c == "\\" and c2 == "r")
     )
 end
 
@@ -239,6 +239,42 @@ function lexer_erro()
     os.exit(1)
 end
 
+function lexer__process_escaped()
+    -- escapes newline
+    if c == "n" then
+        lexer_avanca()
+        return "\n"
+    elseif c == "r" then
+        lexer_avanca()
+        return "\r"
+
+    -- outros escapes
+    return lexer__process_escaped_no_newline()
+end
+
+
+function lexer__process_escaped_no_newline()
+    -- escapes incomuns
+    if c == "a" then
+        lexer_avanca()
+        return "\a"
+    elseif c == "b" then
+        lexer_avanca()
+        return "\b"
+    elseif c == "f" then
+        lexer_avanca()
+        return "\f"
+    elseif c == "z" then
+        lexer_avanca()
+        return "\z"
+
+    -- Escapes de string avançados (decimal \32, hexa \x0A, unicode \u{230}, \z)
+    -- TODO
+
+    else
+        lexer_erro()
+    end
+end
 
 function lexer_parse_string()
     local token_lin = lin
@@ -254,11 +290,8 @@ function lexer_parse_string()
             if lexer_teste_eh_newline(c) then
                 lexer_erro() -- quebra de linha literal não é permitida
             elseif c == "\\" then
-                -- preserva o caractere de escape e o caractere seguinte
-                conteudo = conteudo .. c
-                lexer_avanca()
-                if c == nil then lexer_erro() end
-                conteudo = conteudo .. c
+                lexer_avanca() -- consome o "\"
+                conteudo = conteudo .. lexer__process_escaped_no_newline()
             else
                 conteudo = conteudo .. c
             end
