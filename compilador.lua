@@ -39,6 +39,7 @@ function print_token(t)
     end
 end
 
+
 -- =====
 -- LEXER
 -- =====
@@ -47,10 +48,10 @@ end
 function lexer_init()
     -- DEFINIÇÃO DAS TAGS
     Tag = {
-        EOF    = "EOF",     -- Fim de arquivo
-        NUMBER = "NUMBER",  -- Inteiros decimais ou hexadecimais (ex: 42, 0xFF)
-        STRING = "STRING",  -- Literais de string com escapes interpretados
-        NAME   = "NAME",    -- Identificadores / nomes de variáveis
+        ["EOF"]    = "EOF",     -- Fim de arquivo
+        ["NUMBER"] = "NUMBER",  -- Inteiros decimais ou hexadecimais (ex: 42, 0xFF)
+        ["STRING"] = "STRING",  -- Literais de string com escapes interpretados
+        ["NAME"]   = "NAME",    -- Identificadores / nomes de variáveis
 
         -- Palavras Reservadas
         ["and"]      = "and",
@@ -115,25 +116,106 @@ function lexer_init()
 end
 
 
-function lexer_avanca()
-    -- Lê o primeiro char não lido
-    c = buffer:sub(pos, pos)
-    if c == "" then
-        c = nil -- EOF
+-- Retorna o n-ésimo caractere não lido
+function lexer__get_char(offset)
+    local p = pos + offset
+    if p > #buffer then
+        return nil
     end
+    return buffer:sub(p,p)
+
+function lexer_avanca()
+    -- Atualiza lin, col
+    if lexer_teste_eh_newline(c) then
+        col = col + 1
+        lin = 1
+    else
+        lin = lin + 1
+    end
+
+    -- Lê os chars a frente
+    c  = lexer__get_char(pos)   -- Primeiro char não lido
+    c2 = lexer__get_char(pos+1) -- Segundo char não lido
+    c3 = lexer__get_char(pos+2) -- Terceiro char não lido
 
     -- Atualiza a posição do próx char não lido
     pos = pos + 1
 end
 
 
+function lexer_teste_eh_newline(c)
+    return (
+        c == "\n" or
+        c == "\r"
+    )
+
+
+function lexer_teste_eh_sep(c)
+    return (
+        c == " " or 
+        c == ";" or 
+        c == "\t" or
+        c == "\f" or
+        c == "\v"
+    )
+end
+
+
+-- Imprime uma mensagem de erro pouco explicativa
+function lexer_erro()
+    print(string.format(
+        "%d\t%d",
+        lin,
+        col
+    ))
+end
+
+
 -- Consome chars até ler um token inteiro (mais longo possível)
 -- e retorna este token (ou o especial EOF)
 function lexer_get_token()
+    -- EOF
     if c == nil then
-        return Token("EOF")
+        return Token(Tag["EOF"], nil, lin, col)
     
+    -- Operadores Sem Dúvida
     elseif c == "+" then
         lexer_avanca()
-        return Token("+")
+        return Token(Tag["+"], nil, lin, col)
+    elseif c == "-" then
+        lexer_avanca()
+        return Token(Tag["-"], nil, lin, col)
+    elseif c == "*" then
+        lexer_avanca()
+        return Token(Tag["*"], nil, lin, col)
+    elseif c == "/" then
+        lexer_avanca()
+        return Token(Tag["/"], nil, lin, col)
+    elseif c == "%" then
+        lexer_avanca()
+        return Token(Tag["%"], nil, lin, col)
+    elseif c == "^" then
+        lexer_avanca()
+        return Token(Tag["^"], nil, lin, col)
+    elseif c == "#" then
+        lexer_avanca()
+        return Token(Tag["#"], nil, lin, col)
+    
+    -- Operadores Que Dependem de c+1
+    elseif c == "=" then
+        lexer_avanca()
+        if c == "=" then
+            lexer_avanca()
+            return Token(Tag["=="], nil, lin, col)
+        elseif lexer_teste_eh_sep(c) then
+            return Token(Tag["="], nil, lin, col)
+        else
+            return lexer_erro()
+
+
+    elseif c == "<" then
+        lexer_avanca()
+        if c == "<" then
+            lexer_avanca()
+            return Token(Tag["<<"], nil, lin, col)
 end
