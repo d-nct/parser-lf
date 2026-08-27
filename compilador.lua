@@ -48,10 +48,11 @@ end
 function lexer_init()
     -- DEFINIÇÃO DAS TAGS
     Tag = {
-        ["EOF"]    = "EOF",     -- Fim de arquivo
-        ["NUMBER"] = "NUMBER",  -- Inteiros decimais ou hexadecimais (ex: 42, 0xFF)
-        ["STRING"] = "STRING",  -- Literais de string com escapes interpretados
-        ["NAME"]   = "NAME",    -- Identificadores / nomes de variáveis
+        ["EOF"]    = "EOF",
+        ["NUMBER"] = "NUMBER",
+        ["STRING"] = "STRING",
+        ["NAME"]   = "NAME",
+        ["FLOAT"]  = "FLOAT",
 
         -- Palavras Reservadas
         ["and"]      = "and",
@@ -77,32 +78,32 @@ function lexer_init()
         ["while"]    = "while",
 
         -- Operadores
-        ["+"]   = "+",
-        ["-"]   = "-",
-        ["*"]   = "*",
-        ["/"]   = "/",
-        ["%"]   = "%",
-        ["^"]   = "^",
-        ["#"]   = "#",
-        ["=="]  = "==",
-        ["~="]  = "~=",
-        ["<="]  = "<=",
-        [">="]  = ">=",
-        ["<"]   = "<",
-        [">"]   = ">",
-        ["="]   = "=",
-        ["("]   = "(",
-        [")"]   = ")",
-        ["{"]   = "{",
-        ["}"]   = "}",
-        ["["]   = "[",
-        ["]"]   = "]",
-        [";"]   = ";",
-        [":"]   = ":",
-        [","]   = ",",
-        ["."]   = "."
-        [".."]  = "..",
-        ["..."] = "..."
+        ["+"]   = "+", -- ok
+        ["-"]   = "-", -- ok
+        ["*"]   = "*", -- ok
+        ["/"]   = "/", -- ok
+        ["%"]   = "%", -- ok
+        ["^"]   = "^", -- ok
+        ["#"]   = "#", -- ok
+        ["=="]  = "==", -- ok
+        ["~="]  = "~=", -- ok
+        ["<="]  = "<=", -- ok
+        [">="]  = ">=", -- ok
+        ["<"]   = "<", -- ok
+        [">"]   = ">", -- ok
+        ["="]   = "=", -- ok
+        ["("]   = "(", -- ok
+        [")"]   = ")", -- ok
+        ["{"]   = "{", -- ok
+        ["}"]   = "}", -- ok
+        ["["]   = "[", -- ok
+        ["]"]   = "]", -- ok
+        [";"]   = ";", -- ok
+        [":"]   = ":", -- ok
+        [","]   = ",", -- ok
+        ["."]   = "." -- ok
+        [".."]  = "..", -- ok
+        ["..."] = "..." -- ok
     }
 
     -- String interia do arquivo
@@ -153,7 +154,7 @@ function lexer_teste_eh_newline(c)
 function lexer_teste_eh_sep(c)
     return (
         c == " " or 
-        c == ";" or 
+        -- c == ";" or 
         c == "\t" or
         c == "\f" or
         c == "\v"
@@ -200,6 +201,41 @@ function lexer_get_token()
     elseif c == "#" then
         lexer_avanca()
         return Token(Tag["#"], nil, lin, col)
+    elseif c == "(" then
+        lexer_avanca()
+        return Token(Tag["("], nil, lin, col)
+    elseif c == ")" then
+        lexer_avanca()
+        return Token(Tag[")"], nil, lin, col)
+    elseif c == "{" then
+        lexer_avanca()
+        return Token(Tag["{"], nil, lin, col)
+    elseif c == "}" then
+        lexer_avanca()
+        return Token(Tag["}"], nil, lin, col)
+    elseif c == "[" then
+        lexer_avanca()
+        return Token(Tag["["], nil, lin, col)
+    elseif c == "]" then
+        lexer_avanca()
+        return Token(Tag["]"], nil, lin, col)
+    elseif c == ";" then
+        lexer_avanca()
+        return Token(Tag[";"], nil, lin, col)
+    elseif c == ":" then
+        lexer_avanca()
+        return Token(Tag[":"], nil, lin, col)
+    elseif c == "," then
+        lexer_avanca()
+        return Token(Tag[","], nil, lin, col)
+
+    elseif c == "~" then
+        lexer_avanca()
+        if c == "=" then
+            lexer_avanca()
+            return Token(Tag["~="], nil, lin, col)
+        else
+            return lexer_erro()
     
     -- Operadores Que Dependem de c+1
     elseif c == "=" then
@@ -211,11 +247,51 @@ function lexer_get_token()
             return Token(Tag["="], nil, lin, col)
         else
             return lexer_erro()
-
+        end
 
     elseif c == "<" then
         lexer_avanca()
-        if c == "<" then
+        if c == "=" then
             lexer_avanca()
-            return Token(Tag["<<"], nil, lin, col)
+            return Token(Tag["<="], nil, lin, col)
+        elseif lexer_teste_eh_sep(c) then
+            lexer_avanca()
+            return Token(Tag["<"], nil, lin, col)
+        else
+            return lexer_erro()
+        end
+
+    elseif c == ">" then
+        lexer_avanca()
+        if c == "=" then
+            lexer_avanca()
+            return Token(Tag[">="], nil, lin, col)
+        elseif lexer_teste_eh_sep(c) then
+            lexer_avanca()
+            return Token(Tag[">"], nil, lin, col)
+        else
+            return lexer_erro()
+        end
+
+    elseif c == "." then
+        lexer_avanca()
+        if c == "." then
+            lexer_avanca()
+            if c == "." then
+                lexer_avanca()
+                return Token(Tag["..."], nil, lin, col)
+            else 
+                return lexer_erro()
+            end
+            return Token(Tag[".."], nil, lin, col)
+        elseif lexer_teste_eh_sep(c) then
+            lexer_avanca()
+            return Token(Tag["."], nil, lin, col)
+        else
+            return lexer_erro()
+        end
+    
+    
+
+
 end
