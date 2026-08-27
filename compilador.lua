@@ -19,7 +19,7 @@ end
 
 function print_token(t)
     -- Token sem valor semântico
-    if value == nil then
+    if t.value == nil then
         print(string.format(
             "%d\t%d\t%s", 
             t.lin, 
@@ -134,6 +134,7 @@ function lexer__get_char(offset)
         return nil
     end
     return buffer:sub(p,p)
+end
 
 function lexer_avanca()
     -- Atualiza lin, col
@@ -203,7 +204,6 @@ function lexer_teste_eh_palavra_reservada(p)
             p == "NAME" or
             p == "FLOAT"
         )
-        end
     end
     return false
 end
@@ -391,6 +391,7 @@ function lexer_get_token()
             return Token(Tag["~="], nil, lin, col)
         else
             return lexer_erro()
+        end
     
     -- Operadores Que Dependem de c+1
     elseif c == "=" then
@@ -435,8 +436,6 @@ function lexer_get_token()
             if c == "." then
                 lexer_avanca()
                 return Token(Tag["..."], nil, lin, col)
-            else 
-                return lexer_erro()
             end
             return Token(Tag[".."], nil, lin, col)
         elseif lexer_teste_eh_sep(c) then
@@ -478,3 +477,24 @@ function lexer_get_token()
         return lexer_erro()
     end
 end
+
+
+-- ===============
+-- FLUXO PRINCIPAL
+-- ===============
+function main()
+    -- inicializa o Lexer
+    lexer_init()
+
+    -- consome o primeor caractere
+    lexer_avanca()
+
+    -- imprime os tokens no stdout
+    local token
+    while token.tag ~= Tag["EOF"] do
+        token = lexer_get_token()
+        print_token(token)
+    end
+end
+
+main()
