@@ -139,10 +139,10 @@ end
 function lexer_avanca()
     -- Atualiza lin, col
     if lexer_teste_eh_newline(c) then
-        col = col + 1
-        lin = 1
-    else
         lin = lin + 1
+        col = 1
+    else
+        col = col + 1
     end
 
     -- Lê os chars a frente
@@ -490,7 +490,7 @@ function main()
     lexer_avanca()
 
     -- imprime os tokens no stdout
-    local token
+    local token = {}
     while token.tag ~= Tag["EOF"] do
         token = lexer_get_token()
         print_token(token)
