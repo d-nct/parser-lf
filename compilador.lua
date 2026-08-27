@@ -184,12 +184,17 @@ function lexer_teste_eh_letra(c)
 end
 
 
-function lexer_teste_eh_numero(c)
-    local byte = string.byte(c)
+function lexer_teste_eh_dec(c)
+    local v = string.byte(c or "")
     
     -- Tabela ASCII:
     -- '0' a '9' = 48 a 57
-    return byte >= 48 and byte <= 57
+    return v >= 48 and v <= 57
+end
+
+function lexer_teste_eh_hex(c)
+    local v = string.byte(c or "")
+    return (v >= 48 and v <= 57) or (v >= 65 and v <= 70) or (v >= 97 and v <= 102)
 end
 
 
@@ -322,7 +327,7 @@ end
 
 -- Converte um caractere hex para decimal
 function lexer__char_to_dec(c) 
-    local ascii_val = string.byte(char)
+    local ascii_val = string.byte(c or "")
         
     -- Números de 0 a 9
     if ascii_val >= 48 and ascii_val <= 57 then
@@ -341,42 +346,61 @@ function lexer__char_to_dec(c)
     end
 end
 
+function lexer_parse_numero_hex()
+    local token_lin = lin
+    local token_col = col
+    local valor = 0
+    local base = 16
+    
+    lexer_avanca() -- consome 0
+    lexer_avanca() -- consome x/X
+
+    -- consome o número
+    while lexer_teste_eh_hex(c) do
+        local digito = lexer__char_to_dec(c)
+        valor = (valor * base) + digito
+        lexer_avanca()
+    end
+    
+    return Token(Tag["NUMBER"], valor, lin, col)
+end
+
+
 function lexer_parse_numero()
     local token_lin = lin
     local token_col = col
     local valor = 0
+    local base = 10
     
     -- HEXADECIMAL
     if c == "0" and (c2 == "x" or c2 == "X") then
-        -- a estratégia é remover o prefixo e usar o mesmo algoritmo
-        lexer_avanca()
-        lexer_avanca()
-        return lexer_parse_numero()
+        return lexer_parse_numero_hex()
     end
 
     -- PARTE INTEIRA
-    -- descobrimos qual a "casa" mais significativa (ex: 100 possui 3 casas)
-    local casa = 0
-    while lexer_teste_eh_numero(lexer__get_char(c + casa)) do
-        casa = casa + 1
-    end
+    -- função para o critério do loop de acordo com a base (comentada para não precisar implementar função em atribuição de variável)
+    -- local eh_numero_base = function()
+    --     if base = 10 then return lexer_teste_eh_dec(c) else return lexer_teste_eh_hex(c) end
+    -- end
 
-    while lexer_teste_eh_numero(c) do
-        valor = valor + ( lexer__char_to_dec(c) ^ casa )
-        casa = casa - 1
+    -- while eh_numero_base() do
+    while lexer_teste_eh_dec(c) do
+        local digito = lexer__char_to_dec(c)
+        valor = (valor * base) + digito
         lexer_avanca()
     end
     
     -- PARTE DECIMAL
-    local float = false
-    if c == "." then
-        float = true 
+    local eh_float = false
+    if c == "." and base == 10 then -- float apenas para decimal
+        eh_float = true 
         lexer_avanca() -- consome o "."
 
-        casa = -1
-        while lexer_teste_eh_numero(c) do
-            valor = valor + ( lexer__char_to_dec(c) ^ casa )
-            casa = casa - 1
+        local divisor = 1
+        while lexer_teste_eh_dec(c) do
+            dividor = divisor * 10
+            valor = valor + ( lexer__char_to_dec(c) / divisor )
+            lexer_avanca()
         end
     end
 
@@ -516,7 +540,7 @@ function lexer_get_token()
         local pos_inicio = pos
 
         -- consumimos o restante do identificador
-        while lexer_teste_eh_letra(c) or c == "_" or  lexer_teste_eh_numero(c) do
+        while lexer_teste_eh_letra(c) or c == "_" or  lexer_teste_eh_dec(c) do
             lexer_avanca()
         end
         local identificador = buffer:sub(pos_inicio, pos - 1)
@@ -528,7 +552,7 @@ function lexer_get_token()
         end
     
     -- Tratamento de Numeros
-    elseif lexer_teste_eh_numero(c) then
+    elseif lexer_teste_eh_dec(c) then
         return lexer_parse_numero()
     
     -- Tratamento de Separadores
