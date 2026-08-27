@@ -320,6 +320,77 @@ function lexer_parse_string()
     lexer_erro()
 end
 
+-- Converte um caractere hex para decimal
+function lexer__char_to_dec(c) 
+    local ascii_val = string.byte(char)
+        
+    -- Números de 0 a 9
+    if ascii_val >= 48 and ascii_val <= 57 then
+        return ascii_val - 48
+        
+    -- Letras de A a F
+    elseif ascii_val >= 65 and ascii_val <= 70 then
+        return ascii_val - 55
+        
+    -- Letras de a a f
+    elseif ascii_val >= 97 and ascii_val <= 102 then
+        return ascii_val - 87
+
+    else
+        lexer_erro() -- Isso não deveria acontecer
+    end
+end
+
+function lexer_parse_numero()
+    local token_lin = lin
+    local token_col = col
+    local valor = 0
+    
+    -- HEXADECIMAL
+    if c == "0" and (c2 == "x" or c2 == "X") then
+        -- a estratégia é remover o prefixo e usar o mesmo algoritmo
+        lexer_avanca()
+        lexer_avanca()
+        return lexer_parse_numero()
+    end
+
+    -- PARTE INTEIRA
+    -- descobrimos qual a "casa" mais significativa (ex: 100 possui 3 casas)
+    local casa = 0
+    while lexer_teste_eh_numero(lexer__get_char(c + casa)) do
+        casa = casa + 1
+    end
+
+    while lexer_teste_eh_numero(c) do
+        valor = valor + ( lexer__char_to_dec(c) ^ casa )
+        casa = casa - 1
+        lexer_avanca()
+    end
+    
+    -- PARTE DECIMAL
+    local float = false
+    if c == "." then
+        float = true 
+        lexer_avanca() -- consome o "."
+
+        casa = -1
+        while lexer_teste_eh_numero(c) do
+            valor = valor + ( lexer__char_to_dec(c) ^ casa )
+            casa = casa - 1
+        end
+    end
+
+    -- gera o token
+    local token = {}
+    if float then
+        token = Token(Tag["FLOAT"], valor, lin, col)
+    else
+        token = Token(Tag["NUMBER"], valor, lin, col)
+    end
+
+    return token
+end
+
 
 -- Consome chars até ler um token inteiro (mais longo possível)
 -- e retorna este token (ou o especial EOF)
@@ -410,11 +481,9 @@ function lexer_get_token()
         if c == "=" then
             lexer_avanca()
             return Token(Tag["<="], nil, lin, col)
-        elseif lexer_teste_eh_sep(c) then
+        else
             lexer_avanca()
             return Token(Tag["<"], nil, lin, col)
-        else
-            return lexer_erro()
         end
 
     elseif c == ">" then
@@ -422,11 +491,9 @@ function lexer_get_token()
         if c == "=" then
             lexer_avanca()
             return Token(Tag[">="], nil, lin, col)
-        elseif lexer_teste_eh_sep(c) then
+        else
             lexer_avanca()
             return Token(Tag[">"], nil, lin, col)
-        else
-            return lexer_erro()
         end
 
     elseif c == "." then
@@ -438,11 +505,9 @@ function lexer_get_token()
                 return Token(Tag["..."], nil, lin, col)
             end
             return Token(Tag[".."], nil, lin, col)
-        elseif lexer_teste_eh_sep(c) then
+        else
             lexer_avanca()
             return Token(Tag["."], nil, lin, col)
-        else
-            return lexer_erro()
         end
     
     -- Tratamento de Textos
@@ -462,10 +527,11 @@ function lexer_get_token()
             return Token(Tag["NAME"], identificador, lin, col)
         end
     
-    elseif c == "\"" then
-        return lexer_parse_string()
-
-
+    -- Tratamento de Numeros
+    elseif lexer_teste_eh_numero(c) then
+        return lexer_parse_numero()
+    
+    -- Tratamento de Separadores
     elseif lexer_teste_eh_sep(c) then
         while lexer_teste_eh_sep(c) do
             lexer_avanca()
